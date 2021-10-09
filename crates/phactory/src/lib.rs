@@ -28,8 +28,8 @@ use sp_core::{crypto::Pair, sr25519, H256};
 
 // use pink::InkModule;
 
-use phactory_api::ecall_args::{InitArgs, git_revision};
 use phactory_api::blocks::{self, SyncCombinedHeadersReq, SyncParachainHeaderReq};
+use phactory_api::ecall_args::{git_revision, InitArgs};
 use phactory_api::prpc::InitRuntimeResponse;
 use phactory_api::storage_sync::{
     ParachainSynchronizer, SolochainSynchronizer, StorageSynchronizer,
@@ -53,13 +53,12 @@ mod light_validation;
 mod prpc_service;
 mod rpc_types;
 mod secret_channel;
+mod side_task;
 mod storage;
 mod system;
 mod types;
-mod side_task;
 
 use crate::light_validation::utils::storage_map_prefix_twox_64_concat;
-use contracts::{ExecuteEnv, SYSTEM};
 use storage::{Storage, StorageExt};
 use types::BlockInfo;
 use types::Error;
@@ -69,7 +68,6 @@ use types::Error;
 type RuntimeHasher = <chain::Runtime as frame_system::Config>::Hashing;
 
 struct RuntimeState {
-    contracts: BTreeMap<ContractId, Box<dyn contracts::Contract + Send>>,
     send_mq: MessageSendQueue,
     recv_mq: MessageDispatcher,
 
@@ -157,7 +155,11 @@ impl<Platform: pal::Platform> Phactory<Platform> {
 
     pub fn init(&mut self, args: InitArgs) {
         if args.git_revision != git_revision() {
-            panic!("git revision mismatch: {}(app) vs {}(enclave)", args.git_revision, git_revision());
+            panic!(
+                "git revision mismatch: {}(app) vs {}(enclave)",
+                args.git_revision,
+                git_revision()
+            );
         }
 
         if args.init_bench {
@@ -261,7 +263,6 @@ fn generate_random_info() -> [u8; 32] {
     rand.fill(&mut nonce_vec).unwrap();
     nonce_vec
 }
-
 
 // --------------------------------
 
