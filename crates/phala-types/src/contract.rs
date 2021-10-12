@@ -17,6 +17,7 @@ pub const BTC_LOTTERY: ContractId32 = 7;
 pub const GEOLOCATION: ContractId32 = 8;
 pub const GUESS_NUMBER: ContractId32 = 100;
 pub const BTC_PRICE_BOT: ContractId32 = 101;
+pub const OFF_CHAIN_AUCTION_BOT: ContractId32 = 102;
 
 /// Contract query request parameters, to be encrypted.
 #[derive(Encode, Decode, Debug)]

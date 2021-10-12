@@ -258,6 +258,19 @@ pub mod messaging {
         ReportBtcPrice,
     }
 
+    bind_contract32!(OffChainAuctionCommand, contract::OFF_CHAIN_AUCTION_BOT);
+    #[derive(Debug, Clone, Encode, Decode)]
+    pub enum OffChainAuctionCommand {
+        /// Set the contract owner
+        SetOwner { owner: AccountId },
+        /// Set the authentication token of telegram bot (https://core.telegram.org/bots/api#authorizing-your-bot) and
+        /// the identifier to target chat (https://core.telegram.org/bots/api#sendmessage)
+        SetupBot { token: String, chat_id: String },
+        /// Let the Tg bot to report new auction bid
+        SendAuctionBid { bidder: AccountId, ksm: String, nft_id: String },
+    }
+
+
     /// A fixed point number with 64 integer bits and 64 fractional bits.
     pub type U64F64Bits = u128;
 

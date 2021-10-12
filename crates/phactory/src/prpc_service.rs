@@ -387,6 +387,11 @@ impl<Platform: pal::Platform> Phactory<Platform> {
                 contracts::BTC_PRICE_BOT,
                 contracts::btc_price_bot::BtcPriceBot::new()
             );
+
+            install_contract!(
+                contracts::OFF_CHAIN_AUCTION_BOT,
+                contracts::off_chain_auction_bot::OffChainAuctionBot::new()
+            );
         }
 
         let mut runtime_state = RuntimeState {
