@@ -21,10 +21,9 @@ pub mod web3analytics;
 pub mod geolocation;
 
 pub mod guess_number;
-
 pub mod btc_price_bot;
-
 pub mod off_chain_auction_bot;
+pub mod ghost_auction;
 
 pub use phala_types::contract::*;
 

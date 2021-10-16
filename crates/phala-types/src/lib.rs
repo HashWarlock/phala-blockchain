@@ -270,6 +270,19 @@ pub mod messaging {
         SendAuctionBid { bidder: AccountId, ksm: String, nft_id: String },
     }
 
+    bind_contract32!(GhostAuctionCommand, contract::GHOST_AUCTIONEER_BOT);
+    #[derive(Debug, Clone, Encode, Decode)]
+    pub enum GhostAuctionCommand {
+        /// Set the contract owner
+        SetOwner { owner: AccountId },
+        /// Set the authentication token of telegram bot (https://core.telegram.org/bots/api#authorizing-your-bot) and
+        /// the identifier to target chat (https://core.telegram.org/bots/api#sendmessage)
+        SetupBot { token: String, chat_id: String },
+        /// Query RMRK HTTP endpoint for NFT, create ghost auction & report to Telegram group
+        SetupGhostAuction { nft_id: String, reserve_price: u64, min_bid_increase: u8, duration: u64},
+        // TODO users bid
+        // TODO validate & close auction
+    }
 
     /// A fixed point number with 64 integer bits and 64 fractional bits.
     pub type U64F64Bits = u128;
