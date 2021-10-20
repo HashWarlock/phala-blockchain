@@ -67,7 +67,7 @@ pub struct GhostAuctioneerBot {
     owner: AccountId,
     bot_token: String,
     chat_id: String,
-    ghost_auction: BTreeMap<GhostAuction, AccountId>,
+    ghost_auction: GhostAuction,
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -85,7 +85,7 @@ pub enum Response {
     Owner(AccountId),
     BotToken(String),
     ChatId(String),
-    Nft(RmrkNft),
+    Nft(String),
     NftTopBid(u64),
     TimeLeft(u64),
 }
@@ -145,7 +145,7 @@ impl GhostAuctioneerBot {
             owner: Default::default(),
             bot_token: Default::default(),
             chat_id: Default::default(),
-            ghost_auction: BTreeMap::new(),
+            ghost_auction: Default::default(),
         }
     }
 }
@@ -287,7 +287,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                                 auction.clone()
                             );
 
-                        self.ghost_auction.insert(ghost_auction.clone(), self.owner);
+                        self.ghost_auction = ghost_auction.clone();
 
                         let text = format!("Ghost Auction Alert in 10 minutes for NFT ID: {}", rmrk_nft_id);
                         let uri = format!(
@@ -355,29 +355,29 @@ impl contracts::NativeContract for GhostAuctioneerBot {
 
                 Ok(Response::ChatId(self.chat_id.clone()))
             }
-            // TODO
             Request::QueryNft => {
                 if sender != &alice && sender != &self.owner {
                     return Err(Error::NotAuthorized);
                 }
 
-                Ok(Response::ChatId(self.chat_id.clone()))
+                let nft_id = self.ghost_auction.rmrk_nft.nft_id.clone().ok_or(Error::NoNftDetected)?;
+                Ok(Response::Nft(nft_id))
             }
-            // TODO
             Request::QueryNftTopBid => {
                 if sender != &alice && sender != &self.owner {
                     return Err(Error::NotAuthorized);
                 }
 
-                Ok(Response::ChatId(self.chat_id.clone()))
+                let top_bid = self.ghost_auction.auction.amount.clone().ok_or(Error::NoAuctionDetected)?;
+                Ok(Response::NftTopBid(top_bid))
             }
-            // TODO
             Request::QueryAuctionTimeLeft => {
                 if sender != &alice && sender != &self.owner {
                     return Err(Error::NotAuthorized);
                 }
 
-                Ok(Response::ChatId(self.chat_id.clone()))
+                let time_left = self.ghost_auction.duration.clone().ok_or(Error::NoAuctionDetected)?;
+                Ok(Response::TimeLeft(time_left))
             }
         }
     }
