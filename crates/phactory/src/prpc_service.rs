@@ -395,7 +395,7 @@ impl<Platform: pal::Platform> Phactory<Platform> {
 
             install_contract!(
                 contracts::GHOST_AUCTIONEER_BOT,
-                contracts::ghost_action::GhostAuctioneerBot::new()
+                contracts::ghost_auction::GhostAuctioneerBot::new()
             )
         }
 

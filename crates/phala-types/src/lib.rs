@@ -14,7 +14,7 @@ use sp_core::H256;
 pub mod messaging {
     use alloc::string::String;
     use alloc::vec::Vec;
-    use codec::{Decode, Encode};
+    use codec::{Decode, Encode, Input, Output, Error};
     use core::fmt::Debug;
     use sp_core::U256;
 
@@ -279,9 +279,11 @@ pub mod messaging {
         /// the identifier to target chat (https://core.telegram.org/bots/api#sendmessage)
         SetupBot { token: String, chat_id: String },
         /// Query RMRK HTTP endpoint for NFT, create ghost auction & report to Telegram group
-        SetupGhostAuction { nft_id: String, reserve_price: u64, min_bid_increase: u8, duration: u64},
-        // TODO users bid
-        // TODO validate & close auction
+        SetupGhostAuction { nft_id: String, reserve_price: u64, auto_bid_increase: u64},
+        // Submit new bid at the auto-incremented price
+        //SubmitBid,
+        // Settle auction and establish winning bidder
+        //SettleAuction,
     }
 
     /// A fixed point number with 64 integer bits and 64 fractional bits.
