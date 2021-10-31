@@ -3,7 +3,8 @@ use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime};
 use log::info;
 use parity_scale_codec::{Decode, Encode};
-use phala_mq::MessageOrigin;
+use phala_mq::{contract_id256, MessageOrigin};
+use phala_types::contract::command_topic;
 use serde::{Deserialize, Serialize};
 use serde_json::{error, Value};
 use chain::BlockNumber;
@@ -13,6 +14,7 @@ use surf;
 use super::{TransactionError, TransactionResult};
 use crate::contracts;
 use crate::contracts::{AccountId, NativeContext};
+use crate::secret_channel::Payload;
 use crate::side_task::async_side_task::AsyncSideTask;
 extern crate runtime as chain;
 
@@ -28,6 +30,7 @@ type Command = GhostAuctionCommand;
 ///     Minimum Reserve Price
 ///     Auto-Increment per Request
 ///     Current Bidder
+#[derive(Default)]
 pub struct GhostAuctioneerBot {
     owner: AccountId,
     bot_token: String,
@@ -61,6 +64,7 @@ pub enum Request {
     QueryBotToken,
     QueryChatId,
     QueryNft,
+    QueryNftPrice,
     QueryNextBidPrice,
 }
 
@@ -69,8 +73,9 @@ pub enum Response {
     Owner(AccountId),
     BotToken(String),
     ChatId(String),
-    Nft(String),
-    NextBidPrice(u64),
+    NftId(String),
+    NftPrice(String),
+    NextBidPrice(String),
 }
 
 #[derive(Encode, Decode, Debug)]
@@ -88,8 +93,8 @@ impl GhostAuctioneerBot {
             bot_token: Default::default(),
             chat_id: Default::default(),
             nft_id: Default::default(),
-            reserve_price: Default::default(),
-            auto_bid_increase: Default::default(),
+            reserve_price: 1,
+            auto_bid_increase: 1,
             bidder: Default::default(),
             settled: false,
         }
@@ -100,7 +105,8 @@ impl GhostAuctioneerBot {
 const ALICE: &str = "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d";
 // RMRK 1.0 HTTP URI
 const RMRK_URI: &str = "https://singular.rmrk.app/api/rmrk1/nft/";
-
+// RMRK 1.0 HTTP URL Link
+const RMRK_NFT_LINK: &str = "https://singular.rmrk.app/collectibles/";
 impl contracts::NativeContract for GhostAuctioneerBot {
     type Cmd = Command;
     type QReq = Request;
@@ -118,22 +124,18 @@ impl contracts::NativeContract for GhostAuctioneerBot {
     ) -> TransactionResult {
         info!("Command received: {:?}", &cmd);
 
-        // we want to limit the sender who can use the Commands to the pre-define root account
-        let sender = match &origin {
-            MessageOrigin::AccountId(account) => AccountId::from(*account.as_fixed_bytes()),
-            _ => return Err(TransactionError::BadOrigin),
-        };
         let alice = contracts::account_id_from_hex(ALICE)
             .expect("should not failed with valid address; qed.");
         match cmd {
             Command::SetOwner { owner } => {
-                if sender != alice {
+                if origin.account()? != alice {
                     return Err(TransactionError::BadOrigin);
                 }
                 self.owner = AccountId::from(*owner.as_fixed_bytes());
                 Ok(())
             }
             Command::SetupBot { token, chat_id } => {
+                let sender = origin.account()?;
                 if sender != alice && sender != self.owner {
                     return Err(TransactionError::BadOrigin);
                 }
@@ -142,6 +144,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 Ok(())
             }
             Command::SetupGhostAuction { nft_id, reserve_price, auto_bid_increase } => {
+                let sender = origin.account()?;
                 if sender != alice && sender != self.owner {
                     return Err(TransactionError::BadOrigin);
                 }
@@ -149,9 +152,10 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 let bot_token = self.bot_token.clone();
                 let chat_id = self.chat_id.clone();
                 let query_nft_uri = format!("{}{}", RMRK_URI, nft_id.clone());
-                self.reserve_price = reserve_price;
-                self.auto_bid_increase = auto_bid_increase;
+                self.reserve_price = reserve_price.clone();
+                self.auto_bid_increase = auto_bid_increase.clone();
                 self.bidder = self.owner.clone();
+                self.settled = false;
 
                 // This Command triggers the use of `AsyncSideTask`, it first send a HTTP request to get the current BTC
                 // price from https://min-api.cryptocompare.com/, then sends the price to a Telegram bot through another
@@ -164,6 +168,9 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 // Report the result after 2 blocks no matter whether has received the HTTP response
                 let block_number = context.block.block_number;
                 let duration = 2;
+
+                /*let mq = context.mq().clone();
+                let my_id = self.id();*/
 
                 let task = AsyncSideTask::spawn(
                     block_number,
@@ -201,9 +208,17 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                         let rmrk_nft_metadata = rmrk_nft.metadata;
                         log::info!("RMRK NFT metadata: {}", rmrk_nft_metadata);
                         let rmrk_nft_block = rmrk_nft.block;
-                        log::info!("RMRK NFT ID: {}", rmrk_nft_block);
+                        log::info!("RMRK NFT BlockNumber: {}", rmrk_nft_block);
+                        let rmrk_nft_url = format!("{}{}", RMRK_NFT_LINK, nft_id.clone());
 
-                        let text = format!("New Ghost Auction Alert for NFT ID: {} starting...", rmrk_nft_id);
+                        let text = format!("New Ghost Auction Alert!!!\nNFT ID: {}\nNFT Name: {}\nNFT Metadata: {}\nNFT BlockNumber: {}\nRMRK URL: {}\nStarting Bid Price: {}",
+                                           rmrk_nft_id,
+                                           rmrk_nft_name,
+                                           rmrk_nft_metadata,
+                                           rmrk_nft_block,
+                                           rmrk_nft_url,
+                                           reserve_price
+                        );
                         let uri = format!(
                             "https://api.telegram.org/bot{}/{}",
                             bot_token, "sendMessage"
@@ -228,26 +243,54 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                             }
                         };
                         log::info!("Side task sent new Ghost Auction info: {}", result);
+
+                        // let bidder = sender.clone();
                         result
                     },
                     |_result, _context| {
                         // You can send deterministic number of transactions in the result process
-                        // In this case, we don't send the price since it has already been reported to the TG bot above
+                        /*log::info!("Side task establishing new NFT ghost auction: {}", nft_id.clone());
+                        // Send to SetTopBid to create new bid.
+                        let command = Command::SetTopBid { bidder, reserve_price };
+                        let message = Payload::Plain(command);
+                        mq.sendto(&message, command_topic(contract_id256(my_id)));*/
                     },
                 );
                 context.block.side_task_man.add_task(task);
 
                 Ok(())
             }
-            /*
-            Command::SubmitBid {} => {
+            Command::SubmitAutoBid {} => {
+                let sender = origin.account()?;
+                if sender == alice || sender == self.owner || self.settled != false {
+                    return Err(TransactionError::BadOrigin);
+                }
+                let nft_id = self.nft_id.clone();
+                self.reserve_price.saturating_add(self.auto_bid_increase);
+                self.bidder = sender.clone();
+                log::info!("New bid from {} at {} KSM", self.bidder.clone(), self.reserve_price.clone());
+
+                Ok(())
+            }
+            Command::SettleAuction{} => {
+                let sender = origin.account()?;
                 if sender != alice && sender != self.owner {
+                    return Err(TransactionError::BadOrigin);
+                }
+                log::info!("NFT ID: {} auction has closed. Sold for {} KSM to Account Id {}", self.nft_id, self.reserve_price, self.bidder);
+
+                self.settled = true;
+                Ok(())
+            }
+            /*Command::SubmitAutoBid {} => {
+                let sender = origin.account()?;
+                if sender == alice || sender == self.owner || self.settled != false {
                     return Err(TransactionError::BadOrigin);
                 }
                 let bot_token = self.bot_token.clone();
                 let chat_id = self.chat_id.clone();
                 let nft_id = self.nft_id.clone();
-                let reserve_price = self.reserve_price + self.auto_bid_increase;
+                let reserve_price = self.reserve_price.saturating_add(self.auto_bid_increase);
                 let block_number = context.block.block_number;
                 let duration = 2;
 
@@ -259,7 +302,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                         // Do NOT send mq message in this block.
                         log::info!("Side task starts to submit new bid on NFT");
 
-                        let text = format!("NFT ID: {} auction has closed. Sold for {} KSM to Account Id", nft_id, reserve_price);
+                        let text = format!("NFT ID: {} has a NEW TOP BID!!!\nNew top bid is now {} KSM", nft_id, reserve_price);
                         let uri = format!(
                             "https://api.telegram.org/bot{}/{}",
                             bot_token, "sendMessage"
@@ -286,7 +329,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                         // Update the reserve_price with new bid amount
                         self.reserve_price = reserve_price;
                         self.bidder = sender;
-                        log::info!("Side task sent new Ghost Auction info: {}", result);
+                        log::info!("Side task sent new auto bid of {} KSM info: {}", reserve_price, result);
                         result
                     },
                     |_result, _context| {
@@ -299,9 +342,13 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 Ok(())
             }
             Command::SettleAuction {} => {
+                let sender = origin.account()?;
                 let bot_token = self.bot_token.clone();
                 let chat_id = self.chat_id.clone();
                 let nft_id = self.nft_id.clone();
+                let price = self.reserve_price.clone();
+                let bidder = self.bidder.clone();
+
                 let block_number = context.block.block_number;
                 let duration = 2;
 
@@ -313,7 +360,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                         // Do NOT send mq message in this block.
                         log::info!("Side task starts to settle auction on NFT");
 
-                        let text = format!("NFT ID: {} auction has closed. Sold for {} KSM to Account Id {}", nft_id, self.reserve_price, self.bidder.to_string());
+                        let text = format!("NFT ID: {} auction has closed!!!\nSold for {} KSM to Account Id {}", nft_id, price, bidder);
                         let uri = format!(
                             "https://api.telegram.org/bot{}/{}",
                             bot_token, "sendMessage"
@@ -338,7 +385,8 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                             }
                         };
                         self.settled = true;
-                        log::info!("Side task sent ghost auction settled: {}, results: {}", self.settled, result);
+                        let settled = self.settled.clone();
+                        log::info!("Side task sent ghost auction settled: {}, results: {}", settled, result);
                         result
                     },
                     |_result, _context| {
@@ -349,8 +397,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 context.block.side_task_man.add_task(task);
 
                 Ok(())
-            }
-            */
+            }*/
         }
     }
 
@@ -382,22 +429,18 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 Ok(Response::ChatId(self.chat_id.clone()))
             }
             Request::QueryNft => {
-                if sender != &alice && sender != &self.owner {
-                    return Err(Error::NotAuthorized);
-                }
-
                 let nft_id = Some(self.nft_id.clone()).ok_or(Error::NoNftDetected)?;
-                Ok(Response::Nft(nft_id))
+                Ok(Response::NftId(self.nft_id.clone()))
+            }
+            Request::QueryNftPrice => {
+                let nft_price = Some(self.reserve_price.clone()).ok_or(Error::NoNftDetected)?;
+                Ok(Response::NftPrice(self.reserve_price.clone().to_string()))
             }
             Request::QueryNextBidPrice => {
-                if sender != &alice && sender != &self.owner {
-                    return Err(Error::NotAuthorized);
-                }
-
                 let mut top_bid = Some(self.reserve_price.clone()).ok_or(Error::NoAuctionDetected)?;
                 let auto_incr_bid_by = Some(self.auto_bid_increase.clone()).ok_or(Error::NoAuctionDetected)?;
-                top_bid += auto_incr_bid_by;
-                Ok(Response::NextBidPrice(top_bid))
+                top_bid.saturating_add(auto_incr_bid_by);
+                Ok(Response::NextBidPrice(top_bid.clone().to_string()))
             }
         }
     }

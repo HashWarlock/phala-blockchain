@@ -280,10 +280,12 @@ pub mod messaging {
         SetupBot { token: String, chat_id: String },
         /// Query RMRK HTTP endpoint for NFT, create ghost auction & report to Telegram group
         SetupGhostAuction { nft_id: String, reserve_price: u64, auto_bid_increase: u64},
-        // Submit new bid at the auto-incremented price
-        //SubmitBid,
-        // Settle auction and establish winning bidder
-        //SettleAuction,
+        /// Submit new auto bid at the auto-incremented price
+        SubmitAutoBid,
+        /// Settle auction and establish winning bidder
+        SettleAuction,
+        // Set top bid price of the RMRK NFT and the bidder
+        //SetTopBid { bidder: AccountId, reserve_price: u64 },
     }
 
     /// A fixed point number with 64 integer bits and 64 fractional bits.
