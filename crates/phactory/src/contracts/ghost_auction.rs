@@ -260,7 +260,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
 
                 Ok(())
             }
-            Command::SubmitAutoBid {} => {
+            /*Command::SubmitAutoBid {} => {
                 let sender = origin.account()?;
                 if sender == alice || sender == self.owner || self.settled != false {
                     return Err(TransactionError::BadOrigin);
@@ -281,8 +281,8 @@ impl contracts::NativeContract for GhostAuctioneerBot {
 
                 self.settled = true;
                 Ok(())
-            }
-            /*Command::SubmitAutoBid {} => {
+            }*/
+            Command::SubmitAutoBid {} => {
                 let sender = origin.account()?;
                 if sender == alice || sender == self.owner || self.settled != false {
                     return Err(TransactionError::BadOrigin);
@@ -290,7 +290,12 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 let bot_token = self.bot_token.clone();
                 let chat_id = self.chat_id.clone();
                 let nft_id = self.nft_id.clone();
-                let reserve_price = self.reserve_price.saturating_add(self.auto_bid_increase);
+                let top_bid = self.reserve_price.clone();
+                let auto_bid_increase = self.auto_bid_increase.clone();
+                let reserve_price = top_bid.saturating_add(auto_bid_increase);
+                // Update the reserve_price with new bid amount
+                self.reserve_price = reserve_price;
+                self.bidder = sender;
                 let block_number = context.block.block_number;
                 let duration = 2;
 
@@ -326,9 +331,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                                 format!("Network error: {:?}", err)
                             }
                         };
-                        // Update the reserve_price with new bid amount
-                        self.reserve_price = reserve_price;
-                        self.bidder = sender;
+
                         log::info!("Side task sent new auto bid of {} KSM info: {}", reserve_price, result);
                         result
                     },
@@ -341,6 +344,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
 
                 Ok(())
             }
+
             Command::SettleAuction {} => {
                 let sender = origin.account()?;
                 let bot_token = self.bot_token.clone();
@@ -348,6 +352,9 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 let nft_id = self.nft_id.clone();
                 let price = self.reserve_price.clone();
                 let bidder = self.bidder.clone();
+                self.settled = true;
+                let settled = self.settled.clone();
+                log::info!("Side task sent ghost auction settled: {}", settled);
 
                 let block_number = context.block.block_number;
                 let duration = 2;
@@ -384,9 +391,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                                 format!("Network error: {:?}", err)
                             }
                         };
-                        self.settled = true;
-                        let settled = self.settled.clone();
-                        log::info!("Side task sent ghost auction settled: {}, results: {}", settled, result);
+
                         result
                     },
                     |_result, _context| {
@@ -397,7 +402,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 context.block.side_task_man.add_task(task);
 
                 Ok(())
-            }*/
+            }
         }
     }
 

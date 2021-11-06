@@ -7,20 +7,20 @@ The Phala Confidential Smart Contract offers a unique feature that allows their 
 
 A typical example of the UI worklflow is as follows:
 ### Sign the Smart Contract
-![](docs/static/pha-ghost-auction-sign-cert.png)
+![](docs/static/ghost-auction/pha-ghost-auction-sign-cert.png)
 
 ### Set Up Auctioneer Bot & Auction Settings
-![](docs/static/pha-ghost-auction-bot-setup.png)
+![](docs/static/ghost-auction/pha-ghost-auction-bot-setup.png)
 
 ### Submit Auction & Notify Telegram Group
-![](docs/static/pha-ghost-auction-botwarlock.png)
+![](docs/static/ghost-auction/pha-ghost-auction-botwarlock.png)
+
+### New Bid Alert From Bob & Settle Auction from Alice Notifications to Telegram Group
+![](docs/static/ghost-auction/pha-ghost-auction-update.png)
 
 ## What's Missing?
-- AsyncSideTask result reporting to the blockchain and utilizing the result to change state of smart contract for bid price (`u64`) and bidder (`AccountId`)
 - Multiple NFTs per Ghost Auction
 - Configurable Auction Timer Settings
-- Multi-User Interactions to smart contract state
-  - This part is tricky as letting users change state of smart contract
 - ghost-auction pallet to handle communication & allow users to bid on the NFT
   - idea would be to use the auction pallet template in [open-runtime-module-library](https://github.com/open-web3-stack/open-runtime-module-library/blob/master/auction/src/lib.rs)
   - create an `AuctionHandler` that can interact with the smart contract through the PolkadotApi
@@ -36,10 +36,10 @@ A typical example of the UI worklflow is as follows:
   - producing a result to post back to the blockchain & utilizing the result to mutate the smart contract's state
   - multiple commands that generate different bot updates
     - Start of Auction (Done)
-    - New Bid Alert (Missing)
-    - New Top Bid Alert (Missing)
+    - New Bid Alert (Done)
+    - New Top Bid Alert (Done)
     - Reveal Period (Missing)
-    - Settle Auction (Missing)
+    - Settle Auction (Done)
 - Doing this outside of work hours made time management harder than expected
 
 ## What's Next
