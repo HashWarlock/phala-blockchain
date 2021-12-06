@@ -13,9 +13,13 @@ A typical example of the UI worklflow is as follows:
 ![](docs/static/ghost-auction/pha-ghost-auction-bot-setup.png)
 
 ### Submit Auction & Notify Telegram Group
+![](docs/static/ghost-auction/alice-starts-auction.gif)
 ![](docs/static/ghost-auction/pha-ghost-auction-botwarlock.png)
+### New Bid Alert From Bob 
+![](docs/static/ghost-auction/billy-bids.gif)
 
-### New Bid Alert From Bob & Settle Auction from Alice Notifications to Telegram Group
+### Settle Auction from Alice Notifications to Telegram Group
+![](docs/static/ghost-auction/alice-settles-auction.gif)
 ![](docs/static/ghost-auction/pha-ghost-auction-update.png)
 
 ## What's Missing?
