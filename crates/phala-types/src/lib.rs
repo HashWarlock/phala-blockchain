@@ -288,6 +288,26 @@ pub mod messaging {
         //SetTopBid { bidder: AccountId, reserve_price: u64 },
     }
 
+    bind_contract32!(AuctionMarketCommand, contract::AUCTION_MARKET);
+    #[derive(Debug, Clone, Encode, Decode)]
+    pub enum AuctionMarketCommand {
+        /// Set the Auction Market contract owner
+        SetOwner { owner: AccountId },
+        /// Set the authentication token of telegram bot (https://core.telegram.org/bots/api#authorizing-your-bot)
+        /// the identifier to target chat (https://core.telegram.org/bots/api#sendmessage)
+        /// and the RMRK NFT artist that owns the bot
+        SetupBot { token: String, chat_id: String, owner: AccountId },
+        /// Set a new RMRK NFT auction by configuring NFT ID, starting bid amount, minimum bid increase
+        /// per bid, duration of auction (hours) & time buffer (minutes) between last bid & end of auction
+        SetupNftAuction { nft_id: String, amount: Balance, auto_bid_increase: Balance, duration: u64, time_buffer: u64 },
+        /// Submit new auto bid at the auto-incremented price for an NFT
+        SubmitAutoBid { nft_id: String },
+        /// Settle an NFT's auction and establish winning bidder for an NFT
+        SettleNftAuction { nft_id: String },
+        /// Set top bid price of the RMRK NFT and the top bidder
+        UpdateNftAuction { rmrk_nft: Option<RmrkNft> },
+    }
+
     /// A fixed point number with 64 integer bits and 64 fractional bits.
     pub type U64F64Bits = u128;
 
