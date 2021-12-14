@@ -88,16 +88,7 @@ pub enum Error {
 
 impl GhostAuctioneerBot {
     pub fn new() -> Self {
-        GhostAuctioneerBot {
-            owner: Default::default(),
-            bot_token: Default::default(),
-            chat_id: Default::default(),
-            nft_id: Default::default(),
-            reserve_price: 1,
-            auto_bid_increase: 1,
-            bidder: Default::default(),
-            settled: false,
-        }
+        Default::default()
     }
 }
 
@@ -152,6 +143,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 let bot_token = self.bot_token.clone();
                 let chat_id = self.chat_id.clone();
                 let query_nft_uri = format!("{}{}", RMRK_URI, nft_id.clone());
+                self.nft_id = nft_id.clone();
                 self.reserve_price = reserve_price.clone();
                 self.auto_bid_increase = auto_bid_increase.clone();
                 self.bidder = self.owner.clone();
@@ -169,8 +161,6 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 let block_number = context.block.block_number;
                 let duration = 2;
 
-                /*let mq = context.mq().clone();
-                let my_id = self.id();*/
 
                 let task = AsyncSideTask::spawn(
                     block_number,
@@ -244,7 +234,6 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                         };
                         log::info!("Side task sent new Ghost Auction info: {}", result);
 
-                        // let bidder = sender.clone();
                         result
                     },
                     |_result, _context| {
@@ -260,7 +249,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
 
                 Ok(())
             }
-            /*Command::SubmitAutoBid {} => {
+            /*Command::UpdateNftBid {} => {
                 let sender = origin.account()?;
                 if sender == alice || sender == self.owner || self.settled != false {
                     return Err(TransactionError::BadOrigin);
@@ -294,8 +283,8 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 let auto_bid_increase = self.auto_bid_increase.clone();
                 let reserve_price = top_bid.saturating_add(auto_bid_increase);
                 // Update the reserve_price with new bid amount
-                self.reserve_price = reserve_price;
-                self.bidder = sender;
+                self.reserve_price = reserve_price.clone();
+                self.bidder = sender.clone();
                 let block_number = context.block.block_number;
                 let duration = 2;
 
@@ -352,7 +341,7 @@ impl contracts::NativeContract for GhostAuctioneerBot {
                 let nft_id = self.nft_id.clone();
                 let price = self.reserve_price.clone();
                 let bidder = self.bidder.clone();
-                self.settled = true;
+                self.settled = true.clone();
                 let settled = self.settled.clone();
                 log::info!("Side task sent ghost auction settled: {}", settled);
 
